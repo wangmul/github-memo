@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { setRemote, getRemoteUrl } from '@/lib/git';
+import { setRemote, getRemoteUrl, cloneRepo } from '@/lib/git';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -14,20 +14,6 @@ export async function POST(request: Request) {
     } catch {
         // File might not exist
     }
-
-    // Simple replacement or append
-    const newLines = [];
-    if (token) newLines.push(`GITHUB_TOKEN=${token}`);
-    if (owner) newLines.push(`GITHUB_OWNER=${owner}`);
-    if (repo) newLines.push(`GITHUB_REPO=${repo}`);
-
-    // Very naive env updater: overwrite for MVP or append if smarter?
-    // Let's just overwrite specifically these keys if we were parsing, but for now just write file if empty or append?
-    // Safer: Read all lines, replace keys, write back.
-
-    // Quick implementation: Just overwrite/create .env.local with these values for simplicity in MVP
-    // Warning: This destroys other env vars.
-    // Better: Read, parse, update.
 
     const lines = envContent.split('\n');
     const newEnv: Record<string, string> = {};
@@ -46,7 +32,9 @@ export async function POST(request: Request) {
     // Auto-configure git remote if we have all necessary info
     if (newEnv['GITHUB_TOKEN'] && newEnv['GITHUB_OWNER'] && newEnv['GITHUB_REPO']) {
         const authUrl = `https://${newEnv['GITHUB_TOKEN']}@github.com/${newEnv['GITHUB_OWNER']}/${newEnv['GITHUB_REPO']}.git`;
-        await setRemote(authUrl);
+
+        // Clone the repository to the data directory
+        await cloneRepo(authUrl);
     }
 
     return NextResponse.json({ success: true });
@@ -62,7 +50,7 @@ export async function GET() {
             const [k, v] = line.split('=');
             if (k === 'GITHUB_OWNER') config.owner = v;
             if (k === 'GITHUB_REPO') config.repo = v;
-            if (k === 'GITHUB_TOKEN') config.token = v; // Return actual token for local app UX (or mask if preferred)
+            if (k === 'GITHUB_TOKEN') config.token = v;
         });
 
         // Also get git remote

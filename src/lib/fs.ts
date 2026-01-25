@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-const MEMO_DIR = path.join(process.cwd(), 'memos');
+import { MEMO_DIR } from '@/lib/utils';
 
 export interface Memo {
     slug: string; // filename without extension
