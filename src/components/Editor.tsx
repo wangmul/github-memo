@@ -1,6 +1,6 @@
 "use client";
 
-import { Textarea } from "@/components/ui/textarea"; // Assuming we have or will create this, or use standard
+
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
@@ -12,7 +12,18 @@ interface EditorProps {
 }
 
 export function Editor({ content, slug, onChange, onSave }: EditorProps) {
-    // Auto-save debounce effect could be here
+    // Debounce auto-save
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (content) { // Do not save empty content automatically or maybe we should? for sync.
+                onSave();
+            }
+        }, 2000); // 2 seconds debounce
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [content, onSave]);
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-zinc-950">
@@ -20,6 +31,10 @@ export function Editor({ content, slug, onChange, onSave }: EditorProps) {
                 <h1 className="text-xl font-bold font-sans tracking-tight">{slug}</h1>
                 <div className="text-xs text-zinc-400">
                     {content.length} characters
+                    <span className="ml-2 inline-flex relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
                 </div>
             </div>
             <div className="flex-1 relative">

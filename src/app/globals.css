@@ -1,4 +1,29 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
+
+@font-face {
+  font-family: 'Gmarket Sans';
+  font-weight: 300;
+  font-style: normal;
+  src: url('/fonts/GmarketSansLight.woff') format('woff');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gmarket Sans';
+  font-weight: 500;
+  font-style: normal;
+  src: url('/fonts/GmarketSansMedium.woff') format('woff');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gmarket Sans';
+  font-weight: 700;
+  font-style: normal;
+  src: url('/fonts/GmarketSansBold.woff') format('woff');
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
@@ -20,11 +45,8 @@
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
+  background: linear-gradient(to bottom,
       transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+      rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+  font-family: 'Gmarket Sans', sans-serif !important;
 }

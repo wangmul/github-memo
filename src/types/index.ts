@@ -2,6 +2,7 @@ export interface Memo {
     slug: string;
     content: string;
     updatedAt: string; // Serialized date
+    path?: string; // Optional: Store original file path (e.g., data/foo.md)
 }
 
 export interface GitStatus {
