@@ -26,6 +26,7 @@ export function MemoApp() {
     // Load Memos from Local Storage on Mount
     useEffect(() => {
         const localMemos = storage.getMemos();
+        localMemos.sort((a, b) => b.slug.localeCompare(a.slug)); // Sort initial load
         setMemos(localMemos);
         performSync("pull"); // Attempt to pull latest changes on load
     }, []);
@@ -88,8 +89,8 @@ export function MemoApp() {
                     }
                 });
 
-                // Sort by updated? Or name?
-                // mergedMemos.sort(...)
+                // Sort: Newest First (Desc by slug)
+                mergedMemos.sort((a, b) => b.slug.localeCompare(a.slug));
 
                 setMemos(mergedMemos);
                 storage.saveMemos(mergedMemos);
@@ -127,7 +128,7 @@ export function MemoApp() {
     const handleCreate = () => {
         const slug = `memo-${format(new Date(), "yyyyMMdd-HHmmss")}`;
         const newMemo = { slug, content: "", updatedAt: new Date().toISOString() };
-        const updatedMemos = [newMemo, ...memos];
+        const updatedMemos = [newMemo, ...memos].sort((a, b) => b.slug.localeCompare(a.slug));
 
         setMemos(updatedMemos);
         storage.saveMemos(updatedMemos);

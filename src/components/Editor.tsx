@@ -35,7 +35,7 @@ export function Editor({ content, slug, onChange, onSave }: EditorProps) {
         <div className="h-full flex flex-col bg-white dark:bg-zinc-950">
             <div className="border-b border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between bg-white/50 dark:bg-zinc-950/50 backdrop-blur-sm z-10 sticky top-0">
                 <div className="flex items-center gap-4">
-                    <h1 className="text-xl font-bold font-sans tracking-tight truncate max-w-[200px] md:max-w-md">{slug}</h1>
+                    {/* Slug removed as per user request */}
                     <div className="flex bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1">
                         <button
                             onClick={() => setViewMode('edit')}
