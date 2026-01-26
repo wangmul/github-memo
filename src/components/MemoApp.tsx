@@ -6,6 +6,8 @@ import { Editor } from "./Editor";
 import { SettingsModal } from "./SettingsModal";
 import { IssuesPanel } from "./IssuesPanel";
 import { format } from "date-fns";
+import { RefreshCw } from "lucide-react";
+import { Toast } from "./Toast";
 import { Memo, GitStatus } from "@/types";
 import { storage } from "@/lib/storage";
 import { GitHubClient } from "@/lib/github-client";
@@ -22,6 +24,17 @@ export function MemoApp() {
     const [isIssuesOpen, setIsIssuesOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [syncState, setSyncState] = useState<'idle' | 'saving' | 'synced' | 'pending' | 'error'>('idle');
+
+    // Toast State
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+        message: "",
+        type: 'info',
+        isVisible: false
+    });
+
+    const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+        setToast({ message, type, isVisible: true });
+    };
 
     // Load Memos from Local Storage on Mount
     useEffect(() => {
@@ -43,6 +56,7 @@ export function MemoApp() {
         const settings = storage.getSettings();
         if (!settings) {
             console.log("No settings found, skipping sync");
+            if (action === "push") showToast("Please configure GitHub settings first", "error");
             return;
         }
 
@@ -64,6 +78,7 @@ export function MemoApp() {
                         content: fileData?.content || "",
                         updatedAt: new Date().toISOString(),
                         path: file.path,
+                        sha: fileData?.sha, // Store SHA
                     };
                 }));
 
@@ -90,8 +105,9 @@ export function MemoApp() {
                         if (existsRemote.content === "" && localMemo.content !== "") {
                             // Remote failed or empty? Keep local.
                             console.warn("Remote content empty, keeping local for", localMemo.slug);
+                            // Keep local content but take remote SHA to enable future updates
                             const index = mergedMemos.indexOf(existsRemote);
-                            mergedMemos[index] = localMemo;
+                            mergedMemos[index] = { ...localMemo, sha: existsRemote.sha };
                         }
                     }
                 });
@@ -111,17 +127,46 @@ export function MemoApp() {
                 // Use original path if exists, otherwise default to root {slug}.md
                 const targetPath = memo.path || `${memo.slug}.md`;
 
-                await client.saveFile(
+                // If no SHA (newly created local file), try to fetch it first just in case it exists on remote
+                // to avoid 422 error.
+                let shaToUse = memo.sha;
+                if (!shaToUse) {
+                    try {
+                        const existing = await client.getFile(targetPath);
+                        if (existing?.sha) {
+                            shaToUse = existing.sha;
+                        }
+                    } catch (e) {
+                        // Ignore 404
+                    }
+                }
+
+                const response = await client.saveFile(
                     targetPath,
                     memo.content,
-                    `Update ${memo.slug}`
+                    `Update ${memo.slug}`,
+                    shaToUse
                 );
+
+                // Update local memo with new SHA
+                const newSha = response.content?.sha;
+                if (newSha) {
+                    const updatedMemos = memos.map(m =>
+                        m.slug === currentSlug ? { ...m, sha: newSha } : m
+                    );
+                    setMemos(updatedMemos);
+                    storage.saveMemos(updatedMemos);
+                }
+
                 setSyncState('synced');
+                showToast("Synced to GitHub", "success");
                 setTimeout(() => setSyncState('idle'), 2000);
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error("Sync failed", e);
             setSyncState('error');
+            const errorMessage = e.message || "Sync failed. Check console.";
+            showToast(`Sync Failed: ${errorMessage}`, "error");
         }
     };
 
@@ -215,16 +260,30 @@ export function MemoApp() {
     return (
         <div className="flex h-screen bg-white dark:bg-black text-black dark:text-white font-sans overflow-hidden">
             {/* Mobile Header */}
-            <div className="md:hidden fixed top-0 left-0 right-0 h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/50 backdrop-blur-xl flex items-center px-4 z-30">
+            <div className="md:hidden fixed top-0 left-0 right-0 h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-black/50 backdrop-blur-xl flex items-center justify-between px-4 z-30">
+                <div className="flex items-center">
+                    <button
+                        onClick={() => setIsMobileMenuOpen(true)}
+                        className="p-2 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    <span className="ml-2 font-bold text-lg">GH Memo</span>
+                </div>
+
+                {/* Mobile Sync Button */}
                 <button
-                    onClick={() => setIsMobileMenuOpen(true)}
-                    className="p-2 -ml-2 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white"
+                    onClick={() => performSync("push")}
+                    disabled={syncState === 'saving'}
+                    className={`p-2 rounded-full transition-all ${syncState === 'saving'
+                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
+                        : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white"
+                        }`}
                 >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
+                    <RefreshCw className={`w-5 h-5 ${syncState === 'saving' ? 'animate-spin' : ''}`} />
                 </button>
-                <span className="ml-2 font-bold text-lg">GH Memo</span>
             </div>
 
             <Sidebar
@@ -240,14 +299,38 @@ export function MemoApp() {
                 isOpen={isMobileMenuOpen}
                 onClose={() => setIsMobileMenuOpen(false)}
             />
-            <main className="flex-1 h-full pt-14 md:pt-0">
+            <main className="flex-1 h-full pt-14 md:pt-0 flex flex-col">
                 {currentSlug ? (
-                    <Editor
-                        slug={currentSlug}
-                        content={content}
-                        onChange={handleSave}
-                        onSave={handleAutoSaveTrigger} // Calls sync push
-                    />
+                    <>
+                        {/* Desktop Header (Only visible on MD+) */}
+                        <div className="hidden md:flex h-14 border-b border-zinc-200 dark:border-zinc-800 items-center justify-between px-6 bg-white dark:bg-black">
+                            <div className="font-medium text-zinc-500 text-sm">
+                                {memos.find(m => m.slug === currentSlug)?.slug}
+                            </div>
+
+                            <button
+                                onClick={() => performSync("push")}
+                                disabled={syncState === 'saving'}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${syncState === 'saving'
+                                    ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
+                                    : "bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white"
+                                    }`}
+                                title="Push to GitHub"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${syncState === 'saving' ? 'animate-spin' : ''}`} />
+                                <span>{syncState === 'saving' ? 'Syncing...' : 'Sync'}</span>
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-hidden">
+                            <Editor
+                                slug={currentSlug}
+                                content={content}
+                                onChange={handleSave}
+                                onSave={handleAutoSaveTrigger} // Calls sync push
+                            />
+                        </div>
+                    </>
                 ) : (
                     <div className="flex items-center justify-center h-full text-zinc-400">
                         <div className="text-center">
@@ -274,6 +357,13 @@ export function MemoApp() {
             </main>
             {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
             {isIssuesOpen && <IssuesPanel onClose={() => setIsIssuesOpen(false)} />}
+
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.isVisible}
+                onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
+            />
         </div>
     );
 }

@@ -3,6 +3,7 @@ export interface Memo {
     content: string;
     updatedAt: string; // Serialized date
     path?: string; // Optional: Store original file path (e.g., data/foo.md)
+    sha?: string; // GitHub SHA for updates
 }
 
 export interface GitStatus {

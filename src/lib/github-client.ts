@@ -34,7 +34,7 @@ export class GitHubClient {
     }
 
     async saveFile(path: string, content: string, message: string, sha?: string) {
-        await this.octokit.repos.createOrUpdateFileContents({
+        const { data } = await this.octokit.repos.createOrUpdateFileContents({
             owner: this.owner,
             repo: this.repo,
             path,
@@ -42,6 +42,7 @@ export class GitHubClient {
             content: Buffer.from(content).toString('base64'),
             sha,
         });
+        return data;
     }
 
     async deleteFile(path: string, message: string, sha: string) {
