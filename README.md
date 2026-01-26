@@ -3,7 +3,7 @@
 **GH Memo**는 GitHub 저장소를 백엔드로 사용하는 서버리스(Serverless) 메모 애플리케이션입니다. 
 당신의 소중한 기록은 당신의 GitHub 저장소(`all-the-notes-of-my-world` 등)에 안전하게 저장되며, 앱은 오직 브라우저에서만 동작하여 완벽한 개인정보 보호를 제공합니다.
 
-![App Icon](./public/icon.png)
+<img src="./public/icon.png" width="120" alt="App Icon">
 
 ## ✨ 주요 기능 (Key Features)
 

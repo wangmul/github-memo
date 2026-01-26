@@ -28,6 +28,13 @@ export function MemoApp() {
         const localMemos = storage.getMemos();
         localMemos.sort((a, b) => b.slug.localeCompare(a.slug)); // Sort initial load
         setMemos(localMemos);
+
+        // Auto-select most recent memo if available
+        if (localMemos.length > 0) {
+            setCurrentSlug(localMemos[0].slug);
+            setContent(localMemos[0].content);
+        }
+
         performSync("pull"); // Attempt to pull latest changes on load
     }, []);
 
