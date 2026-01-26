@@ -48,20 +48,51 @@ export function MemoApp() {
                 console.log("Remote files found:", remoteFiles.length);
 
                 // Fetch content for each file (Parallel)
-                const fullMemos = await Promise.all(remoteFiles.map(async (file: any) => {
+                // Fetch content for each file (Parallel)
+                const fetchedRemoteMemos: Memo[] = await Promise.all(remoteFiles.map(async (file: any) => {
                     const fileData = await client.getFile(file.path);
                     return {
                         slug: file.slug,
                         content: fileData?.content || "",
                         updatedAt: new Date().toISOString(),
-                        path: file.path, // Store original path
+                        path: file.path,
                     };
                 }));
 
-                // Merge: For MVP, Remote wins if local is empty, or just overwrite local cache
-                // Better: Merge unique by slug
-                setMemos(fullMemos);
-                storage.saveMemos(fullMemos);
+                // MERGE STRATEGY (Critical Fix for Data Loss)
+                // 1. Create a map of current local memos
+                const localMap = new Map(memos.map(m => [m.slug, m]));
+
+                const mergedMemos = [...fetchedRemoteMemos];
+
+                // 2. Identify local-only memos (not in remote) and keep them
+                // This handles the case where I created a memo offline, and remote sync didn't have it yet.
+                // If I just replaced with remote, my new memo would vanish.
+                memos.forEach(localMemo => {
+                    const existsRemote = mergedMemos.find(r => r.slug === localMemo.slug);
+                    if (!existsRemote) {
+                        mergedMemos.push(localMemo);
+                    } else {
+                        // Conflict: Both exist. 
+                        // If I have unsaved local changes (isSaving?), local might be newer.
+                        // For v3 MVP: We trust Remote for now if we are pulling, BUT
+                        // if local storage was just loaded, it might be stale. 
+                        // Ideally: Compare timestamps if we had them.
+                        // Safer approach for "disappearing": If local has content and remote is empty (error?), keep local?
+                        if (existsRemote.content === "" && localMemo.content !== "") {
+                            // Remote failed or empty? Keep local.
+                            console.warn("Remote content empty, keeping local for", localMemo.slug);
+                            const index = mergedMemos.indexOf(existsRemote);
+                            mergedMemos[index] = localMemo;
+                        }
+                    }
+                });
+
+                // Sort by updated? Or name?
+                // mergedMemos.sort(...)
+
+                setMemos(mergedMemos);
+                storage.saveMemos(mergedMemos);
             } else if (action === "push") {
                 // Push current memo
                 if (!currentSlug) return;
