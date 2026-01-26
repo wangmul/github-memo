@@ -148,6 +148,43 @@ export function MemoApp() {
         }
     };
 
+    const handleDelete = async (slug: string) => {
+        // 1. Remove from Local State & Storage
+        const updatedMemos = memos.filter(m => m.slug !== slug);
+        setMemos(updatedMemos);
+        storage.saveMemos(updatedMemos);
+
+        if (currentSlug === slug) {
+            setCurrentSlug(null);
+            setContent("");
+        }
+
+        // 2. Remove from Remote (Background)
+        const settings = storage.getSettings();
+        if (!settings) return;
+
+        const client = new GitHubClient(settings);
+        const memo = memos.find(m => m.slug === slug);
+
+        if (memo) {
+            try {
+                // We need the SHA to delete, but getFile fetches it.
+                // Or if we have it locally? We don't store SHA locally yet in v3 MVP (simplicity).
+                // So we fetch it first.
+                const targetPath = memo.path || `${memo.slug}.md`;
+                const fileData = await client.getFile(targetPath);
+
+                if (fileData?.sha) {
+                    await client.deleteFile(targetPath, `Delete ${memo.slug}`, fileData.sha);
+                    console.log(`Deleted ${slug} from remote`);
+                }
+            } catch (e) {
+                console.error("Failed to delete from remote", e);
+                // Ideally queue for retry or show error
+            }
+        }
+    };
+
     // Auto-Sync Trigger (Debounce handled by Editor, but Editor calls onSave directly now)
     // We need to trigger the GitHub Push here when "saving" happens nicely
     // Or we keep it simple: Editor calls onSave (Local), and we debounce a Push here?
@@ -188,6 +225,7 @@ export function MemoApp() {
                 currentSlug={currentSlug}
                 onSelect={handleSelect}
                 onCreate={handleCreate}
+                onDelete={handleDelete}
                 onSync={() => performSync("pull")}
                 gitStatus={gitStatus}
                 onOpenSettings={() => setIsSettingsOpen(true)}
@@ -206,13 +244,23 @@ export function MemoApp() {
                 ) : (
                     <div className="flex items-center justify-center h-full text-zinc-400">
                         <div className="text-center">
-                            <p className="mb-4">Select or create a memo</p>
-                            <button
-                                onClick={() => setIsSettingsOpen(true)}
-                                className="text-sm text-blue-500 hover:underline"
-                            >
-                                Configure GitHub Settings
-                            </button>
+                            <h2 className="text-2xl font-bold text-zinc-800 dark:text-zinc-200 mb-2">Welcome</h2>
+                            <p className="mb-6">Select a memo or create a new one to get started.</p>
+
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={handleCreate}
+                                    className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg font-medium hover:opacity-90 transition-opacity"
+                                >
+                                    Create New Memo
+                                </button>
+                                <button
+                                    onClick={() => setIsSettingsOpen(true)}
+                                    className="text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 transition-colors"
+                                >
+                                    Configure GitHub Settings
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

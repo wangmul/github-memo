@@ -1,16 +1,19 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Copy, FileText, GitBranch, Github, Plus, RefreshCw, Save, Settings, AlertCircle } from "lucide-react";
+import { Copy, FileText, GitBranch, Github, Plus, RefreshCw, Save, Settings, AlertCircle, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Memo, GitStatus } from "@/types";
 import { format } from "date-fns";
+import { ConfirmModal } from "./ConfirmModal";
+import { SwipeableMemoItem } from "./SwipeableMemoItem";
 
 interface SidebarProps {
     memos: Memo[];
     currentSlug: string | null;
     onSelect: (slug: string) => void;
     onCreate: () => void;
+    onDelete: (slug: string) => void;
     onSync: () => void;
     gitStatus: GitStatus | null;
     onOpenSettings: () => void;
@@ -20,7 +23,9 @@ interface SidebarProps {
     onClose: () => void;
 }
 
-export function Sidebar({ memos, currentSlug, onSelect, onCreate, onSync, gitStatus, onOpenSettings, onOpenIssues, className, isOpen, onClose }: SidebarProps) {
+export function Sidebar({ memos, currentSlug, onSelect, onCreate, onDelete, onSync, gitStatus, onOpenSettings, onOpenIssues, className, isOpen, onClose }: SidebarProps) {
+    const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
+
     return (
         <>
             {/* Mobile Overlay */}
@@ -41,46 +46,29 @@ export function Sidebar({ memos, currentSlug, onSelect, onCreate, onSync, gitSta
                         <Github className="w-5 h-5" />
                         <span>GH Memo</span>
                     </div>
-                    <button onClick={onCreate} className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-md transition-colors" title="New Memo">
+                    <button
+                        onClick={() => {
+                            onCreate();
+                            onClose();
+                        }}
+                        className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-md transition-colors"
+                        title="New Memo"
+                    >
                         <Plus className="w-4 h-4" />
                     </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                    {memos.map((memo) => {
-                        // Extract title and preview from content
-                        const lines = memo.content.split('\n').filter(line => line.trim() !== '');
-                        const title = lines[0]?.replace(/^#+\s*/, '') || memo.slug;
-                        const preview = lines.slice(1).find(l => l.trim() !== '') || "No additional text";
-
-                        return (
-                            <button
-                                key={memo.slug}
-                                onClick={() => {
-                                    onSelect(memo.slug);
-                                    onClose(); // Close on mobile
-                                }}
-                                className={cn(
-                                    "w-full text-left px-3 py-3 rounded-lg text-sm transition-all flex flex-col gap-1",
-                                    currentSlug === memo.slug
-                                        ? "bg-white dark:bg-zinc-800 shadow-sm"
-                                        : "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
-                                )}
-                            >
-                                <div className={cn(
-                                    "font-medium truncate w-full",
-                                    currentSlug === memo.slug ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"
-                                )}>
-                                    {title}
-                                </div>
-                                <div className="text-xs text-zinc-500 truncate w-full flex items-center gap-1">
-                                    <span className="opacity-75">{format(new Date(), "MM/dd")}</span>
-                                    <span>·</span>
-                                    <span>{preview}</span>
-                                </div>
-                            </button>
-                        );
-                    })}
+                    {memos.map((memo) => (
+                        <SwipeableMemoItem
+                            key={memo.slug}
+                            memo={memo}
+                            currentSlug={currentSlug}
+                            onSelect={onSelect}
+                            onDelete={(slug) => setDeletingSlug(slug)} // Open modal on delete
+                            onCloseSidebar={onClose}
+                        />
+                    ))}
                 </div>
 
                 <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
@@ -113,6 +101,22 @@ export function Sidebar({ memos, currentSlug, onSelect, onCreate, onSync, gitSta
                     </button>
                 </div>
             </aside>
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmModal
+                isOpen={!!deletingSlug}
+                onClose={() => setDeletingSlug(null)}
+                onConfirm={() => {
+                    if (deletingSlug) {
+                        onDelete(deletingSlug);
+                        setDeletingSlug(null);
+                    }
+                }}
+                title="Delete Memo?"
+                description="This action cannot be undone. This will permanently delete the memo from your local device and GitHub repository."
+                confirmText="Delete permanently"
+                isDangerous={true}
+            />
         </>
     );
 }

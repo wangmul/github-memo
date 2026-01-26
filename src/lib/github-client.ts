@@ -44,6 +44,16 @@ export class GitHubClient {
         });
     }
 
+    async deleteFile(path: string, message: string, sha: string) {
+        await this.octokit.repos.deleteFile({
+            owner: this.owner,
+            repo: this.repo,
+            path,
+            message,
+            sha,
+        });
+    }
+
     async getMemoList() {
         try {
             // Use Git Tree API for recursive listing to find files anywhere (e.g., data/ or root)
