@@ -141,6 +141,12 @@ export function MemoApp() {
                     }
                 }
 
+                // Clean Check: If we have a SHA, and we fetched content recently, we *could* verify.
+                // But simpler: If Editor triggered this, it means it was "Dirty".
+                // Double check: If we are just saving exact same content?
+                // Ideally we track lastSyncedContent.
+                // For now, trust the Editor's dirty flag.
+
                 const response = await client.saveFile(
                     targetPath,
                     memo.content,
@@ -159,7 +165,7 @@ export function MemoApp() {
                 }
 
                 setSyncState('synced');
-                showToast("Synced to GitHub", "success");
+                // showToast("Synced to GitHub", "success"); // Removed as per user request
                 setTimeout(() => setSyncState('idle'), 2000);
             }
         } catch (e: any) {

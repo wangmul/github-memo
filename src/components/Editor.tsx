@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Eye, FileEdit, Columns } from "lucide-react";
@@ -17,12 +17,25 @@ type ViewMode = 'edit' | 'split' | 'preview';
 
 export function Editor({ content, slug, onChange, onSave }: EditorProps) {
     const [viewMode, setViewMode] = useState<ViewMode>('edit');
+    const isDirty = useRef(false);
+
+    // Reset dirty state when changing memos
+    useEffect(() => {
+        isDirty.current = false;
+    }, [slug]);
+
+    // Internal change handler to track dirty state
+    const handleChange = (newContent: string) => {
+        isDirty.current = true;
+        onChange(newContent);
+    };
 
     // Debounce auto-save
     useEffect(() => {
         const handler = setTimeout(() => {
-            if (content) {
+            if (content && isDirty.current) {
                 onSave();
+                isDirty.current = false; // Reset after trigger
             }
         }, 2000);
 
@@ -86,8 +99,8 @@ export function Editor({ content, slug, onChange, onSave }: EditorProps) {
                 )}>
                     <textarea
                         value={content}
-                        onChange={(e) => onChange(e.target.value)}
-                        className="w-full h-full p-8 resize-none focus:outline-none bg-transparent font-sans text-lg leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 dark:placeholder:text-zinc-700"
+                        onChange={(e) => handleChange(e.target.value)}
+                        className="w-full h-full p-8 resize-none focus:outline-none bg-transparent font-sans text-lg md:text-sm leading-relaxed text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 dark:placeholder:text-zinc-700"
                         placeholder="Write your thoughts..."
                         spellCheck={false}
                     />
@@ -98,7 +111,7 @@ export function Editor({ content, slug, onChange, onSave }: EditorProps) {
                     "h-full overflow-y-auto p-8 bg-zinc-50/50 dark:bg-zinc-900/50 transition-all duration-300",
                     viewMode === 'preview' ? "w-full" : viewMode === 'split' ? "w-1/2" : "w-0 hidden"
                 )}>
-                    <div className="prose prose-zinc dark:prose-invert max-w-none">
+                    <div className="prose prose-zinc dark:prose-invert max-w-none md:prose-sm">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {content}
                         </ReactMarkdown>
